@@ -1,4 +1,4 @@
-import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 
 // ── State ──────────────────────────────────────────────
 let extractor = null;
