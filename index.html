@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idea Bubbles</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #161822;
+      border-bottom: 1px solid #2a2d3a;
+    }
+
+    #header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #c0c4d6;
+      letter-spacing: 0.3px;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #6b7094;
+      min-width: 140px;
+      text-align: right;
+    }
+
+    #input-area {
+      display: flex;
+      padding: 12px 20px;
+      gap: 10px;
+      background: #161822;
+      border-bottom: 1px solid #2a2d3a;
+    }
+
+    #idea-input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid #2a2d3a;
+      border-radius: 8px;
+      background: #1e2030;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #idea-input:focus {
+      border-color: #5b6abf;
+    }
+
+    #idea-input:disabled {
+      opacity: 0.5;
+    }
+
+    #submit-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #5b6abf;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #submit-btn:hover {
+      background: #6d7bd4;
+    }
+
+    #submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #viz-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .bubble text {
+      pointer-events: none;
+      fill: #fff;
+      font-size: 11px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+
+    .bubble circle {
+      cursor: grab;
+      stroke: rgba(255,255,255,0.15);
+      stroke-width: 1.5;
+      transition: stroke 0.2s;
+    }
+
+    .bubble circle:hover {
+      stroke: rgba(255,255,255,0.5);
+    }
+
+    .delete-btn circle:hover {
+      fill: #dc2626;
+    }
+
+    .bubble.dragging circle {
+      cursor: grabbing;
+      stroke: rgba(255,255,255,0.7);
+    }
+
+    #tooltip {
+      position: absolute;
+      background: #1e2030;
+      border: 1px solid #3a3d5a;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #e0e0e0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 280px;
+      word-wrap: break-word;
+      z-index: 10;
+    }
+
+    #empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #4a4d6a;
+    }
+
+    #empty-state h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    #empty-state p {
+      font-size: 14px;
+    }
+
+    .subgroup-link {
+      stroke-opacity: 0.12;
+      stroke: #8888cc;
+    }
+
+    .group-link {
+      stroke-opacity: 0.04;
+      stroke: #8888cc;
+      stroke-dasharray: 4 3;
+    }
+
+    .group-hull {
+      pointer-events: none;
+    }
+
+    .cluster-label {
+      pointer-events: none;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #controls {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: rgba(22, 24, 34, 0.92);
+      border: 1px solid #2a2d3a;
+      border-radius: 10px;
+      padding: 14px 18px;
+      z-index: 10;
+      min-width: 200px;
+    }
+
+    #controls h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #6b7094;
+      margin-bottom: 12px;
+    }
+
+    .slider-group {
+      margin-bottom: 12px;
+    }
+
+    .slider-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .slider-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #9ca0b8;
+      margin-bottom: 5px;
+    }
+
+    .slider-group label span {
+      color: #c0c4d6;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider-group input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #2a2d3a;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #5b6abf;
+      cursor: pointer;
+      border: 2px solid #1e2030;
+    }
+
+    .slider-group input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #5b6abf;
+      cursor: pointer;
+      border: 2px solid #1e2030;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Idea Bubbles</h1>
+    <div id="status">Type an idea to begin</div>
+  </div>
+  <div id="input-area">
+    <input type="text" id="idea-input" placeholder="Enter an idea..." autofocus>
+    <button id="submit-btn">Add</button>
+  </div>
+  <div id="viz-container">
+    <svg id="viz"></svg>
+    <div id="controls">
+      <h3>Clustering</h3>
+      <div class="slider-group">
+        <label>Groups <span id="group-val">0.50</span></label>
+        <input type="range" id="group-slider" min="0.20" max="0.80" step="0.01" value="0.50">
+      </div>
+      <div class="slider-group">
+        <label>Subgroups <span id="sub-val">0.65</span></label>
+        <input type="range" id="sub-slider" min="0.30" max="0.90" step="0.01" value="0.65">
+      </div>
+    </div>
+    <div id="tooltip"></div>
+    <div id="empty-state">
+      <h2>No ideas yet</h2>
+      <p>Add ideas above and watch them cluster by meaning</p>
+    </div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
