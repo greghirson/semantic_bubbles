@@ -66,8 +66,6 @@ async function getExtractor() {
     'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.1'
   );
   env.allowLocalModels = false;
-  env.useBrowserCache = true;
-  env.useCache = true;
   extractor = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5', {
     dtype: 'q8',
     progress_callback: (p) => {
