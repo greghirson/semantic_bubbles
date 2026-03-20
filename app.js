@@ -10,8 +10,8 @@ let subclusterCenters = {};
 // Two thresholds define the hierarchy:
 //   - GROUP_THRESHOLD: broad groups (lower = more merging)
 //   - SUBGROUP_THRESHOLD: tight subclusters within groups (higher = stricter)
-let GROUP_THRESHOLD = 0.50;
-let SUBGROUP_THRESHOLD = 0.65;
+let GROUP_THRESHOLD = 0.65;
+let SUBGROUP_THRESHOLD = 0.85;
 
 const PALETTE = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6',
