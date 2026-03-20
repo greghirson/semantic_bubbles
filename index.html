@@ -201,7 +201,7 @@
       border-radius: 10px;
       padding: 14px 18px;
       z-index: 10;
-      min-width: 200px;
+      min-width: 210px;
     }
 
     #controls h3 {
@@ -211,6 +211,86 @@
       letter-spacing: 0.8px;
       color: #6b7094;
       margin-bottom: 12px;
+    }
+
+    .ctrl-section {
+      border-top: 1px solid #2a2d3a;
+      padding-top: 12px;
+      margin-top: 12px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ctrl-btn {
+      flex: 1;
+      padding: 6px 0;
+      border: 1px solid #2a2d3a;
+      border-radius: 6px;
+      background: #1e2030;
+      color: #c0c4d6;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      text-align: center;
+    }
+
+    .ctrl-btn:hover {
+      background: #282a3e;
+      border-color: #5b6abf;
+    }
+
+    #saves-list {
+      margin-top: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .save-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      color: #9ca0b8;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .save-item:hover {
+      background: #1e2030;
+    }
+
+    .save-item .save-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .save-item .save-meta {
+      font-size: 10px;
+      color: #6b7094;
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    .save-item .save-delete {
+      margin-left: 6px;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .save-item:hover .save-delete {
+      opacity: 1;
     }
 
     .slider-group {
@@ -286,6 +366,20 @@
       <div class="slider-group">
         <label>Subgroups <span id="sub-val">0.65</span></label>
         <input type="range" id="sub-slider" min="0.30" max="0.90" step="0.01" value="0.65">
+      </div>
+      <div class="ctrl-section">
+        <h3>Export</h3>
+        <div class="btn-row">
+          <button class="ctrl-btn" id="export-svg">SVG</button>
+          <button class="ctrl-btn" id="export-png">PNG</button>
+        </div>
+      </div>
+      <div class="ctrl-section">
+        <h3>Saved Maps</h3>
+        <div class="btn-row">
+          <button class="ctrl-btn" id="save-btn">Save Current</button>
+        </div>
+        <div id="saves-list"></div>
       </div>
     </div>
     <div id="tooltip"></div>

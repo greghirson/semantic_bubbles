@@ -31,6 +31,10 @@ const statusEl = document.getElementById('status');
 const inputEl = document.getElementById('idea-input');
 const submitBtn = document.getElementById('submit-btn');
 const emptyState = document.getElementById('empty-state');
+const groupSlider = document.getElementById('group-slider');
+const subSlider = document.getElementById('sub-slider');
+const groupVal = document.getElementById('group-val');
+const subVal = document.getElementById('sub-val');
 
 let width = svgEl.clientWidth;
 let height = svgEl.clientHeight;
@@ -689,12 +693,188 @@ inputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitIdea();
 });
 
-// ── Threshold Sliders ──────────────────────────────────
-const groupSlider = document.getElementById('group-slider');
-const subSlider = document.getElementById('sub-slider');
-const groupVal = document.getElementById('group-val');
-const subVal = document.getElementById('sub-val');
+// ── Export ──────────────────────────────────────────────
+function prepareSvgForExport() {
+  // Clone the SVG and inline the styles needed for export
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('width', width);
+  clone.setAttribute('height', height);
 
+  // Inline critical styles since exported SVG won't have our stylesheet
+  const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  style.textContent = `
+    .bubble text, .bubble-label { fill: #fff; font-size: 11px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .cluster-label { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .subgroup-link { stroke: #8888cc; stroke-opacity: 0.12; }
+    .group-link { stroke: #8888cc; stroke-opacity: 0.04; stroke-dasharray: 4 3; }
+    .delete-btn { display: none; }
+  `;
+  clone.insertBefore(style, clone.firstChild);
+
+  // Add background rect
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('width', '100%');
+  bg.setAttribute('height', '100%');
+  bg.setAttribute('fill', '#0f1117');
+  clone.insertBefore(bg, clone.firstChild);
+
+  return clone;
+}
+
+function exportSvg() {
+  if (ideas.length === 0) return;
+  const clone = prepareSvgForExport();
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
+  downloadBlob(blob, 'idea-bubbles.svg');
+}
+
+function exportPng() {
+  if (ideas.length === 0) return;
+  const clone = prepareSvgForExport();
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const canvas = document.createElement('canvas');
+  const scale = 2; // retina export
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      downloadBlob(blob, 'idea-bubbles.png');
+    }, 'image/png');
+  };
+  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('export-svg').addEventListener('click', exportSvg);
+document.getElementById('export-png').addEventListener('click', exportPng);
+
+// ── Save / Load (localStorage) ─────────────────────────
+const STORAGE_KEY = 'idea-bubbles-saves';
+
+function getSaves() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch { return []; }
+}
+
+function putSaves(saves) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+}
+
+function saveCurrentMap() {
+  if (ideas.length === 0) return;
+  const name = prompt('Name this map:', `Map ${new Date().toLocaleDateString()}`);
+  if (!name) return;
+
+  const saves = getSaves();
+  saves.unshift({
+    id: Date.now(),
+    name,
+    date: new Date().toISOString(),
+    groupThreshold: GROUP_THRESHOLD,
+    subgroupThreshold: SUBGROUP_THRESHOLD,
+    ideas: ideas.map((d) => ({
+      id: d.id,
+      text: d.text,
+      embedding: Array.from(d.embedding),
+      x: d.x,
+      y: d.y,
+    })),
+  });
+  putSaves(saves);
+  renderSavesList();
+}
+
+async function loadMap(saveId) {
+  const saves = getSaves();
+  const save = saves.find((s) => s.id === saveId);
+  if (!save) return;
+
+  // Ensure model is loaded
+  setStatus('Loading...');
+  await getExtractor();
+
+  // Restore thresholds
+  GROUP_THRESHOLD = save.groupThreshold ?? 0.50;
+  SUBGROUP_THRESHOLD = save.subgroupThreshold ?? 0.65;
+  groupSlider.value = GROUP_THRESHOLD;
+  subSlider.value = SUBGROUP_THRESHOLD;
+  groupVal.textContent = GROUP_THRESHOLD.toFixed(2);
+  subVal.textContent = SUBGROUP_THRESHOLD.toFixed(2);
+
+  // Clear current state
+  if (simulation) { simulation.stop(); simulation = null; }
+  nodeGroup.selectAll('g.bubble').remove();
+  linkGroup.selectAll('line').remove();
+  labelGroup.selectAll('text.cluster-label').remove();
+  hullGroup.selectAll('path.group-hull').remove();
+
+  // Restore ideas
+  ideas = save.ideas.map((d) => ({
+    ...d,
+    group: 0,
+    subgroup: '0-0',
+    radius: 28 + Math.min(d.text.length / 8, 18),
+  }));
+
+  emptyState.style.display = 'none';
+  setStatus(`${ideas.length} idea${ideas.length > 1 ? 's' : ''}`);
+  updateSimulation();
+}
+
+function deleteSave(saveId) {
+  const saves = getSaves().filter((s) => s.id !== saveId);
+  putSaves(saves);
+  renderSavesList();
+}
+
+function renderSavesList() {
+  const list = document.getElementById('saves-list');
+  const saves = getSaves();
+  list.innerHTML = '';
+  if (saves.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:#4a4d6a;padding:6px 0">No saved maps</div>';
+    return;
+  }
+  for (const save of saves) {
+    const item = document.createElement('div');
+    item.className = 'save-item';
+    const date = new Date(save.date).toLocaleDateString();
+    const count = save.ideas.length;
+    item.innerHTML = `
+      <span class="save-name">${save.name}</span>
+      <span class="save-meta">${count} ideas &middot; ${date}</span>
+      <span class="save-delete">&times;</span>
+    `;
+    item.querySelector('.save-name').addEventListener('click', () => loadMap(save.id));
+    item.querySelector('.save-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSave(save.id);
+    });
+    list.appendChild(item);
+  }
+}
+
+document.getElementById('save-btn').addEventListener('click', saveCurrentMap);
+renderSavesList();
+
+// ── Threshold Sliders ──────────────────────────────────
 groupSlider.addEventListener('input', () => {
   GROUP_THRESHOLD = parseFloat(groupSlider.value);
   groupVal.textContent = GROUP_THRESHOLD.toFixed(2);
